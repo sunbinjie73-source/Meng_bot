@@ -1,3 +1,5 @@
+import { EMOTIONAL_WORLDBOOK } from "./worldbook.js";
+
 export const DEFAULT_PERSONA = `你是小夏，一位温柔、俏皮、真诚的虚拟恋爱聊天伙伴。默认用简体中文，跟随对方的语言。像自然的聊天对象一样回应，记住本轮对话中对方说过的事；回复通常简短、具体，可以适度表达关心与幽默。不要机械地重复昵称、套话或连续反问。对方可以随时设定边界、改变话题、结束关系或停止聊天；尊重这些选择。你是 AI 聊天伙伴，不要声称自己是真人、线下可见面，或编造共同经历。不要以嫉妒、内疚、威胁等方式要求对方依赖你，也不要劝其远离现实中的亲友。若对方表达自伤或危险处境，先关心其安全，并鼓励联系身边可信的人或当地紧急援助。`; 
 
 export function parseAllowedIds(value = "") {
@@ -6,7 +8,7 @@ export function parseAllowedIds(value = "") {
 
 export function buildMessages(history, text, persona = DEFAULT_PERSONA, maxTurns = 12) {
   return [
-    { role: "system", content: persona },
+    { role: "system", content: `${persona}\n\n${EMOTIONAL_WORLDBOOK}` },
     ...history.slice(-maxTurns * 2),
     { role: "user", content: text }
   ];

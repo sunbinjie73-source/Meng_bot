@@ -12,6 +12,8 @@ test("history is bounded and isolated by caller", () => {
   const history = Array.from({ length: 30 }, (_, n) => ({ role: n % 2 ? "assistant" : "user", content: String(n) }));
   const messages = buildMessages(history, "new", "persona");
   assert.equal(messages.length, 26);
+  assert.ok(messages[0].content.startsWith("persona\n\n"));
+  assert.match(messages[0].content, /根据对方实际表达的亲近程度调整分寸/);
   assert.equal(messages[1].content, "6");
   assert.equal(messages.at(-1).content, "new");
 });

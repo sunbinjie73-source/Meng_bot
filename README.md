@@ -2,6 +2,8 @@
 
 一个单实例 Telegram 私聊 bot，通过 OpenAI 兼容格式的中转站调用 Claude。默认中文，支持多轮聊天和 `/reset`。使用长轮询，不需要公网域名。
 
+`src/worldbook.js` 包含情感表现规则：按真实对话里的关系进展调整亲近程度，让克制型角色也能表达在意，并避免编造共同回忆。即使通过 `BOT_PERSONA` 自定义人物设定，这层规则仍会加入系统提示。模型提供方的内容规则仍由提供方执行。
+
 ## 创建与部署
 
 1. 在 Telegram 与 [@BotFather](https://t.me/BotFather) 对话，发送 `/newbot` 创建 bot，保存返回的 Token。

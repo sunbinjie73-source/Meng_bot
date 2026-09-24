@@ -1,4 +1,5 @@
 import { buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitText } from "./core.js";
+import { MemoryStore, memoryMessages } from "./memory.js";
 
 const required = ["TELEGRAM_BOT_TOKEN", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL"];
 const missing = required.filter(name => !process.env[name]?.trim());
@@ -11,7 +12,7 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 const aiUrl = completionUrl(process.env.AI_BASE_URL);
 const allowedIds = parseAllowedIds(process.env.ALLOWED_USER_IDS);
 const persona = process.env.BOT_PERSONA?.trim() || DEFAULT_PERSONA;
-const histories = new Map();
+const memoryStore = new MemoryStore(process.env.MEMORY_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH);
 let running = true;
 process.on("SIGTERM", () => { running = false; });
 process.on("SIGINT", () => { running = false; });
@@ -49,12 +50,23 @@ async function reply(message) {
   }
   const command = input.split(/\s/)[0].split("@")[0].toLowerCase();
   if (command === "/start") {
-    await send(chatId, `嗨，我是${process.env.BOT_NAME?.trim() || "小夏"}。想聊什么都可以。用 /reset 清空这段对话的临时记忆。`);
+    await send(chatId, `嗨，我是${process.env.BOT_NAME?.trim() || "小夏"}。想聊什么都可以。/memory 查看长期记忆，/reset 清空近期对话，/forget 删除全部记忆。`);
     return;
   }
   if (command === "/reset") {
-    histories.delete(userId);
-    await send(chatId, "好，我们从头聊。今天过得怎么样？");
+    const memory = await memoryStore.load(userId);
+    await memoryStore.save(userId, { ...memory, history: [] });
+    await send(chatId, "近期对话已经清空，长期记忆还在。今天想聊什么？");
+    return;
+  }
+  if (command === "/forget") {
+    await memoryStore.forget(userId);
+    await send(chatId, "你的近期对话和长期记忆都已删除。我们重新认识吧。");
+    return;
+  }
+  if (command === "/memory") {
+    const memory = await memoryStore.load(userId);
+    await send(chatId, memory.summary ? `我记得这些：\n${memory.summary}` : "还没有形成长期记忆。近期对话会在聊天时使用；如果想全部删除，发 /forget。");
     return;
   }
   if (input.length > 4000) {
@@ -62,17 +74,32 @@ async function reply(message) {
     return;
   }
 
-  const old = histories.get(userId) || [];
   try {
+    const memory = await memoryStore.load(userId);
     await telegram("sendChatAction", { chat_id: chatId, action: "typing" });
     const data = await request(aiUrl, {
       method: "POST",
       headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.AI_MODEL, messages: buildMessages(old, input, persona), temperature: 0.8, max_tokens: 800, stream: false })
+      body: JSON.stringify({ model: process.env.AI_MODEL, messages: buildMessages(memory.history, input, persona, 12, memory.summary), temperature: 0.8, max_tokens: 800, stream: false })
     }, 70000);
     const answer = readAnswer(data);
+    memory.history.push({ role: "user", content: input }, { role: "assistant", content: answer });
+    await memoryStore.save(userId, memory);
     await send(chatId, answer);
-    histories.set(userId, [...old, { role: "user", content: input }, { role: "assistant", content: answer }].slice(-24));
+    if (memory.history.length >= 36) {
+      try {
+        const summarized = await request(aiUrl, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: process.env.AI_MODEL, messages: memoryMessages(memory.summary, memory.history), temperature: 0, max_tokens: 800, stream: false })
+        }, 70000);
+        memory.summary = readAnswer(summarized).slice(0, 1500);
+        memory.history = memory.history.slice(12);
+        await memoryStore.save(userId, memory);
+      } catch (error) {
+        console.error("整理长期记忆失败，保留原始历史：", error.message);
+      }
+    }
   } catch (error) {
     console.error("回复失败：", error.message);
     try { await send(chatId, "刚才连接不太顺畅，过一会儿再发一次好吗？"); } catch (sendError) {
@@ -82,6 +109,7 @@ async function reply(message) {
 }
 
 async function main() {
+  await memoryStore.init();
   // Long polling requires exactly one active replica and no Telegram webhook.
   const me = await telegram("getMe", {});
   console.log(`已启动 @${me.username}，等待私聊消息`);

@@ -1,5 +1,6 @@
 import { BOT_NAME, buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitBubbles, splitText } from "./core.js";
 import { MemoryStore, memoryMessages } from "./memory.js";
+import { hasServiceTone } from "./dialogue.js";
 
 const required = ["TELEGRAM_BOT_TOKEN", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL"];
 const missing = required.filter(name => !process.env[name]?.trim());
@@ -54,7 +55,11 @@ async function reply(message) {
   }
   const command = input.split(/\s/)[0].split("@")[0].toLowerCase();
   if (command === "/start") {
-    await send(chatId, `嗨，我是${BOT_NAME}。想聊什么都可以。/memory 查看长期记忆，/reset 清空近期对话，/forget 删除全部记忆。`);
+    await send(chatId, `你来啦。我是${BOT_NAME}，今天想先从哪件事说起？`);
+    return;
+  }
+  if (command === "/help") {
+    await send(chatId, "/memory 查看长期记忆\n/reset 清空近期对话\n/forget 删除全部记忆");
     return;
   }
   if (command === "/reset") {
@@ -86,7 +91,24 @@ async function reply(message) {
       headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: process.env.AI_MODEL, messages: buildMessages(memory.history, input, persona, 12, memory.summary), temperature: 0.8, max_tokens: 800, stream: false })
     }, 70000);
-    const answer = readAnswer(data);
+    let answer = readAnswer(data);
+    if (hasServiceTone(answer, input)) {
+      try {
+        const rewritten = await request(aiUrl, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: process.env.AI_MODEL, messages: [
+            ...buildMessages(memory.history, input, persona, 12, memory.summary),
+            { role: "assistant", content: answer },
+            { role: "user", content: "刚才的回复有些像客服。请保留要表达的意思，用萌萌自己的口吻重新接住我这句话，回应其中的具体内容。不要复述、分析或提问收尾；自然分段即可。只输出改写后的回复。" }
+          ], temperature: 0.85, max_tokens: 800, stream: false })
+        }, 70000);
+        const alternative = readAnswer(rewritten);
+        if (!hasServiceTone(alternative, input)) answer = alternative;
+      } catch (error) {
+        console.error("语气调整失败，使用首次回复：", error.message);
+      }
+    }
     memory.history.push({ role: "user", content: input }, { role: "assistant", content: answer });
     await memoryStore.save(userId, memory);
     await sendBubbles(chatId, answer);
@@ -118,6 +140,15 @@ async function main() {
   const me = await telegram("getMe", {});
   const profileName = await telegram("getMyName", {});
   if (profileName.name !== BOT_NAME) await telegram("setMyName", { name: BOT_NAME });
+  await telegram("setMyCommands", { commands: [
+    { command: "start", description: "认识萌萌" },
+    { command: "help", description: "查看使用说明" },
+    { command: "memory", description: "查看长期记忆" },
+    { command: "reset", description: "清空近期对话" },
+    { command: "forget", description: "删除全部记忆" }
+  ] });
+  await telegram("setChatMenuButton", { menu_button: { type: "commands" } });
+  console.log("Telegram 命令菜单已同步");
   console.log(`已启动 @${me.username}，等待私聊消息`);
   let offset;
   let delay = 1000;

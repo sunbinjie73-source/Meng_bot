@@ -1,4 +1,4 @@
-import { buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitText } from "./core.js";
+import { buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitBubbles, splitText } from "./core.js";
 import { MemoryStore, memoryMessages } from "./memory.js";
 
 const required = ["TELEGRAM_BOT_TOKEN", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL"];
@@ -36,6 +36,10 @@ async function telegram(method, payload) {
 
 async function send(chatId, text) {
   for (const part of splitText(text)) await telegram("sendMessage", { chat_id: chatId, text: part });
+}
+
+async function sendBubbles(chatId, text) {
+  for (const bubble of splitBubbles(text)) await telegram("sendMessage", { chat_id: chatId, text: bubble });
 }
 
 async function reply(message) {
@@ -85,7 +89,7 @@ async function reply(message) {
     const answer = readAnswer(data);
     memory.history.push({ role: "user", content: input }, { role: "assistant", content: answer });
     await memoryStore.save(userId, memory);
-    await send(chatId, answer);
+    await sendBubbles(chatId, answer);
     if (memory.history.length >= 36) {
       try {
         const summarized = await request(aiUrl, {

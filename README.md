@@ -1,6 +1,8 @@
-# Telegram 恋爱聊天 Bot
+# 萌萌 · Telegram 恋爱聊天 Bot
 
-一个单实例 Telegram 私聊 bot，通过 OpenAI 兼容格式的中转站调用 Claude。默认中文，支持持久化聊天记忆。使用长轮询，不需要公网域名。
+萌萌是独立构建的成年女性虚构恋爱聊天角色。项目使用单实例 Telegram 私聊 worker，通过 OpenAI 兼容格式的中转站调用 Claude。默认中文，支持持久化聊天记忆。使用长轮询，不需要公网域名。部署时会把 Telegram 显示名称设置为「萌萌」，用户名需在 BotFather 单独管理。
+
+本项目按入口、角色规则、对话逻辑、记忆模块分文件组织，部署到 Railway 时用 `npm start` 启动 worker；没有引入参考项目的角色设定、QQ 功能或 PostgreSQL 记忆实现。已有独立记忆模块继续使用挂载卷。
 
 `src/worldbook.js` 包含情感表现规则：按真实对话里的关系进展调整亲近程度，让克制型角色也能表达在意，并避免编造共同回忆。即使通过 `BOT_PERSONA` 自定义人物设定，这层规则仍会加入系统提示。模型提供方的内容规则仍由提供方执行。
 
@@ -11,7 +13,7 @@
 1. 在 Telegram 与 [@BotFather](https://t.me/BotFather) 对话，发送 `/newbot` 创建 bot，保存返回的 Token。
 2. 把本仓库连到 Railway，新建服务。项目文件就在仓库根目录，Root Directory 留空。
 3. 设置服务变量：`TELEGRAM_BOT_TOKEN`、`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL`。`AI_BASE_URL` 应为中转站给出的 OpenAI 兼容地址，通常以 `/v1` 结尾；也可以填写完整 `/chat/completions` 地址。
-4. 给该服务挂载 Railway Volume 到 `/data`；应用会读取 Railway 自动设置的 `RAILWAY_VOLUME_MOUNT_PATH`。存储不可用时启动会失败，避免把记忆误存到临时容器。可选变量：`BOT_NAME`、`BOT_PERSONA`、`ALLOWED_USER_IDS`（逗号分隔的 Telegram 数字用户 ID；留空时允许任何人私聊，可能产生 API 费用）。不要提交 `.env` 或 Token 到 GitHub。
+4. 给该服务挂载 Railway Volume 到 `/data`；应用会读取 Railway 自动设置的 `RAILWAY_VOLUME_MOUNT_PATH`。存储不可用时启动会失败，避免把记忆误存到临时容器。可选变量：`BOT_PERSONA`、`ALLOWED_USER_IDS`（逗号分隔的 Telegram 数字用户 ID；留空时允许任何人私聊，可能产生 API 费用）。不要提交 `.env` 或 Token 到 GitHub。
 5. 部署后查看日志中的 `已启动 @机器人用户名`。在 Telegram 打开 bot，发 `/start`，再发一句话验证回复。只有一个实例可运行长轮询，保持 Railway sleep/serverless 关闭，restart policy 设为 Always，不要设置 cron。
 
 ## 本地运行

@@ -1,4 +1,4 @@
-import { buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitBubbles, splitText } from "./core.js";
+import { BOT_NAME, buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitBubbles, splitText } from "./core.js";
 import { MemoryStore, memoryMessages } from "./memory.js";
 
 const required = ["TELEGRAM_BOT_TOKEN", "AI_BASE_URL", "AI_API_KEY", "AI_MODEL"];
@@ -54,7 +54,7 @@ async function reply(message) {
   }
   const command = input.split(/\s/)[0].split("@")[0].toLowerCase();
   if (command === "/start") {
-    await send(chatId, `嗨，我是${process.env.BOT_NAME?.trim() || "小夏"}。想聊什么都可以。/memory 查看长期记忆，/reset 清空近期对话，/forget 删除全部记忆。`);
+    await send(chatId, `嗨，我是${BOT_NAME}。想聊什么都可以。/memory 查看长期记忆，/reset 清空近期对话，/forget 删除全部记忆。`);
     return;
   }
   if (command === "/reset") {
@@ -116,6 +116,8 @@ async function main() {
   await memoryStore.init();
   // Long polling requires exactly one active replica and no Telegram webhook.
   const me = await telegram("getMe", {});
+  const profileName = await telegram("getMyName", {});
+  if (profileName.name !== BOT_NAME) await telegram("setMyName", { name: BOT_NAME });
   console.log(`已启动 @${me.username}，等待私聊消息`);
   let offset;
   let delay = 1000;

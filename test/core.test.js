@@ -1,11 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildMessages, completionUrl, parseAllowedIds, readAnswer, splitBubbles, splitText } from "../src/core.js";
+import { BOT_NAME, DEFAULT_PERSONA, buildMessages, completionUrl, parseAllowedIds, readAnswer, splitBubbles, splitText } from "../src/core.js";
 
 test("completion URL accepts a /v1 base or full endpoint", () => {
   assert.equal(completionUrl("https://relay.example/v1/"), "https://relay.example/v1/chat/completions");
   assert.equal(completionUrl("https://relay.example/v1/chat/completions"), "https://relay.example/v1/chat/completions");
   assert.throws(() => completionUrl("http://relay.example/v1"));
+});
+
+test("default character is Mengmeng, an adult woman", () => {
+  assert.equal(BOT_NAME, "萌萌");
+  assert.match(DEFAULT_PERSONA, /成年女性/);
+  assert.match(DEFAULT_PERSONA, /你叫萌萌/);
 });
 
 test("history is bounded and isolated by caller", () => {

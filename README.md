@@ -5,7 +5,7 @@
 ## 创建与部署
 
 1. 在 Telegram 与 [@BotFather](https://t.me/BotFather) 对话，发送 `/newbot` 创建 bot，保存返回的 Token。
-2. 把本仓库连到 Railway，新建服务，Root Directory 设为 `/bot`（如果单独把 `bot` 文件夹上传为仓库根目录，则留空）。
+2. 把本仓库连到 Railway，新建服务。项目文件就在仓库根目录，Root Directory 留空。
 3. 设置服务变量：`TELEGRAM_BOT_TOKEN`、`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL`。`AI_BASE_URL` 应为中转站给出的 OpenAI 兼容地址，通常以 `/v1` 结尾；也可以填写完整 `/chat/completions` 地址。
 4. 可选变量：`BOT_NAME`、`BOT_PERSONA`、`ALLOWED_USER_IDS`（逗号分隔的 Telegram 数字用户 ID；留空时允许任何人私聊，可能产生 API 费用）。不要提交 `.env` 或 Token 到 GitHub。
 5. 部署后查看日志中的 `已启动 @机器人用户名`。在 Telegram 打开 bot，发 `/start`，再发一句话验证回复。只有一个实例可运行长轮询，保持 Railway sleep/serverless 关闭，restart policy 设为 Always，不要设置 cron。

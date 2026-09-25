@@ -20,7 +20,7 @@ test("history is bounded and isolated by caller", () => {
   const messages = buildMessages(history, "new", "persona");
   assert.equal(messages.length, 26);
   assert.ok(messages[0].content.startsWith("persona\n\n"));
-  assert.match(messages[0].content, /根据对方实际表达的亲近程度调整分寸/);
+  assert.match(messages[0].content, /萌萌已经很喜欢对方/);
   assert.match(messages[0].content, /【成人亲密关系】/);
   assert.match(messages[0].content, /先回应具体内容/);
   assert.doesNotMatch(messages[0].content, /\[\[BUBBLE\]\]/);

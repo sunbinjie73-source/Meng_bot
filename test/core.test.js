@@ -48,6 +48,7 @@ test("partner context belongs only to a confirmed user and can be disabled", () 
   assert.equal(unknown.some(message => /这位用户现实中有女朋友/.test(message.content)), false);
   const known = buildMessages([], "你好", undefined, 12, "", "girlfriend");
   assert.match(known[1].content, /这位用户现实中有女朋友/);
+  assert.match(known[1].content, /做第三者/);
   const disabled = buildMessages([], "你好", undefined, 12, "旧摘要：女朋友", "off");
   assert.match(disabled[2].content, /不要将既有摘要中关于用户现实伴侣的旧说法当成当前事实/);
   assert.equal(disclosesGirlfriend("我现实中有女朋友，她知道我在聊天"), true);

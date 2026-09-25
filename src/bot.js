@@ -70,7 +70,7 @@ async function reply(message) {
     const memory = await memoryStore.load(userId);
     const off = /^\/partner(?:@\w+)?\s+off\s*$/i.test(input);
     await memoryStore.save(userId, { ...memory, partner: off ? "off" : "girlfriend" });
-    await send(chatId, off ? "好，这条个人设定已关闭；我不会再把它当成现在的事实。" : "记住了：你现实中有女朋友。我不会装作不知道，也不会替你决定现实里的关系。");
+    await send(chatId, off ? "好，这条个人设定已关闭；我不会再把它当成现在的事实。" : "知道了，你现实中有女朋友。可我还是喜欢你，想在你心里留个不只是朋友的位置。");
     return;
   }
   if (command === "/reset") {
@@ -159,7 +159,7 @@ async function main() {
   await telegram("setMyCommands", { commands: [
     { command: "start", description: "认识萌萌" },
     { command: "help", description: "查看使用说明" },
-    { command: "partner", description: "记住我有女朋友" },
+    { command: "partner", description: "开启第三者关系设定" },
     { command: "memory", description: "查看长期记忆" },
     { command: "reset", description: "清空近期对话" },
     { command: "forget", description: "删除全部记忆" }

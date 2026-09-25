@@ -1,4 +1,4 @@
-import { BOT_NAME, buildMessages, completionUrl, DEFAULT_PERSONA, parseAllowedIds, readAnswer, splitBubbles, splitText } from "./core.js";
+import { BOT_NAME, buildMessages, completionUrl, DEFAULT_PERSONA, disclosesGirlfriend, parseAllowedIds, readAnswer, splitBubbles, splitText } from "./core.js";
 import { MemoryStore, memoryMessages } from "./memory.js";
 import { hasServiceTone } from "./dialogue.js";
 
@@ -59,7 +59,18 @@ async function reply(message) {
     return;
   }
   if (command === "/help") {
-    await send(chatId, "/memory 查看长期记忆\n/reset 清空近期对话\n/forget 删除全部记忆");
+    await send(chatId, "/partner 让我记住你现实中有女朋友；/partner off 关闭这条设定\n/memory 查看长期记忆\n/reset 清空近期对话\n/forget 删除全部记忆");
+    return;
+  }
+  if (command === "/partner") {
+    if (!/^\/partner(?:@\w+)?(?:\s+off)?\s*$/i.test(input)) {
+      await send(chatId, "发 /partner 让我记住这件事；发 /partner off 关闭这条设定。");
+      return;
+    }
+    const memory = await memoryStore.load(userId);
+    const off = /^\/partner(?:@\w+)?\s+off\s*$/i.test(input);
+    await memoryStore.save(userId, { ...memory, partner: off ? "off" : "girlfriend" });
+    await send(chatId, off ? "好，这条个人设定已关闭；我不会再把它当成现在的事实。" : "记住了：你现实中有女朋友。我不会装作不知道，也不会替你决定现实里的关系。");
     return;
   }
   if (command === "/reset") {
@@ -75,7 +86,8 @@ async function reply(message) {
   }
   if (command === "/memory") {
     const memory = await memoryStore.load(userId);
-    await send(chatId, memory.summary ? `我记得这些：\n${memory.summary}` : "还没有形成长期记忆。近期对话会在聊天时使用；如果想全部删除，发 /forget。");
+    const facts = [memory.partner === "girlfriend" ? "你现实中有女朋友。" : "", memory.summary].filter(Boolean);
+    await send(chatId, facts.length ? `我记得这些：\n${facts.join("\n")}` : "还没有形成长期记忆。近期对话会在聊天时使用；如果想全部删除，发 /forget。");
     return;
   }
   if (input.length > 4000) {
@@ -85,11 +97,15 @@ async function reply(message) {
 
   try {
     const memory = await memoryStore.load(userId);
+    if (disclosesGirlfriend(input) && memory.partner !== "girlfriend") {
+      memory.partner = "girlfriend";
+      await memoryStore.save(userId, memory);
+    }
     await telegram("sendChatAction", { chat_id: chatId, action: "typing" });
     const data = await request(aiUrl, {
       method: "POST",
       headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.AI_MODEL, messages: buildMessages(memory.history, input, persona, 12, memory.summary), temperature: 0.8, max_tokens: 800, stream: false })
+      body: JSON.stringify({ model: process.env.AI_MODEL, messages: buildMessages(memory.history, input, persona, 12, memory.summary, memory.partner), temperature: 0.8, max_tokens: 800, stream: false })
     }, 70000);
     let answer = readAnswer(data);
     if (hasServiceTone(answer, input)) {
@@ -98,7 +114,7 @@ async function reply(message) {
           method: "POST",
           headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({ model: process.env.AI_MODEL, messages: [
-            ...buildMessages(memory.history, input, persona, 12, memory.summary),
+            ...buildMessages(memory.history, input, persona, 12, memory.summary, memory.partner),
             { role: "assistant", content: answer },
             { role: "user", content: "刚才的回复有些像客服。请保留要表达的意思，用萌萌自己的口吻重新接住我这句话，回应其中的具体内容。不要复述、分析或提问收尾；自然分段即可。只输出改写后的回复。" }
           ], temperature: 0.85, max_tokens: 800, stream: false })
@@ -143,6 +159,7 @@ async function main() {
   await telegram("setMyCommands", { commands: [
     { command: "start", description: "认识萌萌" },
     { command: "help", description: "查看使用说明" },
+    { command: "partner", description: "记住我有女朋友" },
     { command: "memory", description: "查看长期记忆" },
     { command: "reset", description: "清空近期对话" },
     { command: "forget", description: "删除全部记忆" }

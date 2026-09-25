@@ -18,6 +18,9 @@ test("per-user memories survive reinitialization and can be forgotten", async ()
     assert.match(buildMessages(data.history, "早", undefined, 12, data.summary)[1].content, /喜欢咖啡/);
     await store.save("123", { ...data, history: [] });
     assert.equal((await store.load("123")).summary, "喜欢咖啡");
+    await store.save("123", { ...data, partner: "girlfriend" });
+    assert.equal((await new MemoryStore(directory).load("123")).partner, "girlfriend");
+    assert.equal((await store.load("456")).partner, undefined);
     await store.forget("123");
     assert.deepEqual(await store.load("123"), { summary: "", history: [] });
     assert.throws(() => store.path("../456"));

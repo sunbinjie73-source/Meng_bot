@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BOT_NAME, DEFAULT_PERSONA, buildMessages, completionUrl, parseAllowedIds, readAnswer, splitBubbles, splitText } from "../src/core.js";
+import { BOT_NAME, DEFAULT_PERSONA, buildMessages, completionUrl, disclosesGirlfriend, parseAllowedIds, readAnswer, splitBubbles, splitText } from "../src/core.js";
 import { hasServiceTone } from "../src/dialogue.js";
 
 test("completion URL accepts a /v1 base or full endpoint", () => {
@@ -41,6 +41,19 @@ test("assistant templates trigger one tone repair in casual chat", () => {
   assert.equal(hasServiceTone("六次？那我替你记仇了。", "今天有点烦"), false);
   assert.equal(hasServiceTone("我可以帮你列步骤。", "帮我列一下步骤"), false);
   assert.equal(hasServiceTone("我是 AI 聊天伙伴。", "你是AI吗"), false);
+});
+
+test("partner context belongs only to a confirmed user and can be disabled", () => {
+  const unknown = buildMessages([], "你好");
+  assert.equal(unknown.some(message => /这位用户现实中有女朋友/.test(message.content)), false);
+  const known = buildMessages([], "你好", undefined, 12, "", "girlfriend");
+  assert.match(known[1].content, /这位用户现实中有女朋友/);
+  const disabled = buildMessages([], "你好", undefined, 12, "旧摘要：女朋友", "off");
+  assert.match(disabled[2].content, /不要将既有摘要中关于用户现实伴侣的旧说法当成当前事实/);
+  assert.equal(disclosesGirlfriend("我现实中有女朋友，她知道我在聊天"), true);
+  assert.equal(disclosesGirlfriend("其实我有女朋友了"), true);
+  assert.equal(disclosesGirlfriend("如果我有女朋友呢"), false);
+  assert.equal(disclosesGirlfriend("我没有女朋友"), false);
 });
 
 test("relay replies and telegram chunks", () => {
